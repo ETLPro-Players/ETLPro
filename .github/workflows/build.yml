@@ -10,49 +10,69 @@
 name: ETLBuild
 
 on:
-  #  pull_request:
+#  pull_request:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * FRI"
 
 jobs:
   # Try to figure out the build version information only once
-  pre-build:
+  version:
     runs-on: ubuntu-latest
     outputs:
       describe: ${{ steps.git.outputs.describe }}
       tag: ${{ steps.git.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all history
           fetch-tags: true
+          ref: ${{ github.ref }}  # Explicitly checkout the ref that triggered the workflow
+
+      - name: Debug Git Info
+        run: |
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "Current branch/tag:"
+          git branch -a
+          echo "Available tags:"
+          git tag -l
+          echo "Remote info:"
+          git remote -v
 
       - name: Fetch git version information
         id: git
         run: |
-          git fetch --tags --force
-          git_describe=$(git describe --abbrev=7 2>/dev/null | awk '{$1=$1};1')
-          git_tag=$(git describe --abbrev=0 2>/dev/null | awk '{$1=$1};1')
+          # Ensure we have all tags
+          git fetch --tags --force --prune
+          
+          echo "Tags after fetch:"
+          git tag -l
+          
+          # Get version info
+          git_describe=$(git describe --tags --always 2>/dev/null || echo "unknown")
+          git_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+          
+          echo "Debug: Using describe: $git_describe"
+          echo "Debug: Using tag: $git_tag"
           echo "Version info: $git_describe ?? $git_tag"
           echo "describe=$git_describe" >> "$GITHUB_OUTPUT"
           echo "tag=$git_tag" >> "$GITHUB_OUTPUT"
 
-  #   __  __               _                                                  _     _
-  #  |  \/  |             | |                                                | |   (_)
-  #  | \  / |   ___     __| |     __ _    ___   _ __     ___   _ __    __ _  | |_   _    ___    _ __
-  #  | |\/| |  / _ \   / _` |    / _` |  / _ \ | '_ \   / _ \ | '__|  / _` | | __| | |  / _ \  | '_ \
-  #  | |  | | | (_) | | (_| |   | (_| | |  __/ | | | | |  __/ | |    | (_| | | |_  | | | (_) | | | | |
-  #  |_|  |_|  \___/   \__,_|    \__, |  \___| |_| |_|  \___| |_|     \__,_|  \__| |_|  \___/  |_| |_|
-  #                               __/ |
-  #                              |___/
+
+#   __  __               _                                                  _     _
+#  |  \/  |             | |                                                | |   (_)
+#  | \  / |   ___     __| |     __ _    ___   _ __     ___   _ __    __ _  | |_   _    ___    _ __
+#  | |\/| |  / _ \   / _` |    / _` |  / _ \ | '_ \   / _ \ | '__|  / _` | | __| | |  / _ \  | '_ \
+#  | |  | | | (_) | | (_| |   | (_| | |  __/ | | | | |  __/ | |    | (_| | | |_  | | | (_) | | | | |
+#  |_|  |_|  \___/   \__,_|    \__, |  \___| |_| |_|  \___| |_|     \__,_|  \__| |_|  \___/  |_| |_|
+#                               __/ |
+#                              |___/
 
   lnx64-mod:
-    runs-on: ubuntu-22.04
-    needs: pre-build
+    runs-on: ubuntu-20.04
+    needs: version
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,12 +80,12 @@ jobs:
 
       - name: Build
         env:
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             git config --global --add safe.directory /code
             ./easybuild.sh build -64 -mod
@@ -87,8 +107,8 @@ jobs:
           if-no-files-found: error
 
   lnx32-mod:
-    runs-on: ubuntu-22.04
-    needs: pre-build
+    runs-on: ubuntu-20.04
+    needs: version
     steps:
       - uses: actions/checkout@v4
         with:
@@ -96,12 +116,12 @@ jobs:
 
       - name: Build
         env:
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             git config --global --add safe.directory /code
             ./easybuild.sh build -mod
@@ -117,8 +137,8 @@ jobs:
           if-no-files-found: error
 
   lnx-aarch64-mod:
-    runs-on: ubuntu-22.04
-    needs: pre-build
+    runs-on: ubuntu-20.04
+    needs: version
     container:
       image: etlegacy/lnx-aarch64-build
     steps:
@@ -128,8 +148,8 @@ jobs:
 
       - name: Build
         env:
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           ./easybuild.sh build -RPIT -mod -ninja
@@ -146,7 +166,7 @@ jobs:
 
   osx-mod:
     runs-on: macos-13
-    needs: pre-build
+    needs: version
     steps:
       - uses: actions/checkout@v4
         with:
@@ -167,8 +187,8 @@ jobs:
         env:
           SDKROOT: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
           DEVELOPER_DIR: /Library/Developer/CommandLineTools
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         shell: bash
         run: |
           ./easybuild.sh build -64 -mod --osx=10.10 --osx-arc="x86_64;arm64" -j
@@ -184,8 +204,8 @@ jobs:
           if-no-files-found: error
 
   win-mod:
-    runs-on: windows-2022
-    needs: pre-build
+    runs-on: windows-2019
+    needs: version
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,8 +214,8 @@ jobs:
       - name: Build
         shell: cmd
         env:
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         run: |
           call .\easybuild.bat build -mod
 
@@ -210,8 +230,8 @@ jobs:
           if-no-files-found: error
 
   win64-mod:
-    runs-on: windows-2022
-    needs: pre-build
+    runs-on: windows-2019
+    needs: version
     steps:
       - uses: actions/checkout@v4
         with:
@@ -220,8 +240,8 @@ jobs:
       - name: Build
         shell: cmd
         env:
-          CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-          CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+          CI_ETL_TAG: ${{needs.version.outputs.tag}}
         run: |
           call .\easybuild.bat build -mod -64
 
@@ -235,149 +255,46 @@ jobs:
             build/legacy/tvgame*.dll
           if-no-files-found: error
 
-  android-mod:
-    runs-on: ubuntu-22.04
-    needs: pre-build
-    env:
-      SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGN_APK_ALLIAS }}
-      SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGN_APK_PASS }}
-      SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGN_APK_PASS }}
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
-    container:
-      image: etlegacy/android-build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
 
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "17"
-
-      - name: Build JoyStick Dependency
-        working-directory: ./app/libs/joystick
-        run: |
-          ./gradlew clean               --stacktrace --info
-          ./gradlew assembleRelease     --stacktrace --info
-          ./gradlew publishToMavenLocal --stacktrace --info
-
-      - name: Upload JoyStick Dependency Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-joystick-packages
-          path: "/root/.m2/repository/com/etlegacy/android/joystick/"
-          if-no-files-found: error
-
-      - name: Build Release
-        if: github.repository == 'etlegacy/etlegacy'
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          ./gradlew clean assembleRelease --stacktrace --info
-          ls -R
-      - name: Build Debug
-        if: github.repository != 'etlegacy/etlegacy'
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          ./gradlew clean assembleDebug --stacktrace --info
-          ls -R
-
-      - name: Prepare artifacts
-        run: |
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/arm64-v8a/libcgame*.so .
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/arm64-v8a/libui*.so .
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/x86/libcgame*.so .
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/x86/libui*.so .
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/x86_64/libcgame*.so .
-          mv ./app/build/intermediates/merged_native_libs/*/mergeReleaseNativeLibs/out/lib/x86_64/libui*.so .
-          ls -ltrah
-
-      - name: Upload arm64-v8a
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-arm64-mod
-          path: |
-            libcgame*arm64*.so
-            libui*arm64*.so
-          if-no-files-found: error
-
-      - name: Upload x86
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-x86-mod
-          path: |
-            libcgame*i386.so
-            libui*i386.so
-          if-no-files-found: error
-
-      - name: Upload x86_64
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-x86_64-mod
-          path: |
-            libcgame*x86_64.so
-            libui*x86_64.so
-          if-no-files-found: error
-
-  #   __  __                                                          _
-  #  |  \/  |                                                        | |
-  #  | \  / |   ___   _ __    __ _    ___     _ __ ___     ___     __| |  ___
-  #  | |\/| |  / _ \ | '__|  / _` |  / _ \   | '_ ` _ \   / _ \   / _` | / __|
-  #  | |  | | |  __/ | |    | (_| | |  __/   | | | | | | | (_) | | (_| | \__ \
-  #  |_|  |_|  \___| |_|     \__, |  \___|   |_| |_| |_|  \___/   \__,_| |___/
-  #                           __/ |
-  #                          |___/
-  # Since lnx32 is installing the most, use it as the step that combines all the other steps mod files.
-  # This step also generates the final packages for 32 bit lnx.
+#   __  __                                                          _
+#  |  \/  |                                                        | |
+#  | \  / |   ___   _ __    __ _    ___     _ __ ___     ___     __| |  ___
+#  | |\/| |  / _ \ | '__|  / _` |  / _ \   | '_ ` _ \   / _ \   / _` | / __|
+#  | |  | | |  __/ | |    | (_| | |  __/   | | | | | | | (_) | | (_| | \__ \
+#  |_|  |_|  \___| |_|     \__, |  \___|   |_| |_| |_|  \___/   \__,_| |___/
+#                           __/ |
+#                          |___/
+# Since lnx32 is installing the most, use it as the step that combines all the other steps mod files.
+# This step also generates the final packages for 32 bit lnx.
   mod-merger:
-    runs-on: ubuntu-22.04
-    needs:
-      [
-        pre-build,
-        lnx64-mod,
-        lnx32-mod,
-        osx-mod,
-        win-mod,
-        win64-mod,
-        lnx-aarch64-mod,
-        android-mod,
-      ]
+    runs-on: ubuntu-20.04
+    needs: [ version, lnx64-mod, lnx32-mod, osx-mod, win-mod, win64-mod, lnx-aarch64-mod ]
     steps:
+
       - uses: actions/download-artifact@v4
         with:
           name: incomplete-mod-pk3
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: "*-mod"
+          pattern: '*-mod'
           path: platforms
           merge-multiple: true
 
       - name: Create supported platform manifest
         shell: bash
         run: |
-          echo "win_x86 win_x86_64 lnx_x86 lnx_x86_64 macos_x86_64 macos_aarch64 lnx_armv8_64 android_aarch64 android_x86 android_x86_64" > platforms.manifest
+          echo "win_x86 win_x86_64 lnx_x86 lnx_x86_64 macos_x86_64 macos_aarch64 lnx_armv8_64" > platforms.manifest
 
       - name: Merge mod files
         shell: bash
         run: |
-          zip -rvj -MM legacy_*.pk3 platforms.manifest platforms/cgame* platforms/ui* platforms/libcgame* platforms/libui*
+          zip -rvj -MM legacy_*.pk3 platforms.manifest platforms/cgame* platforms/ui*
 
       - name: Create mod zip
         shell: bash
         run: |
-          zip -rvj -MM etlegacy-mod-${{needs.pre-build.outputs.describe}}.zip legacy_*.pk3 platforms/qagame* platforms/tvgame*
-
-      - name: Remove old artifacts
-        uses: geekyeggo/delete-artifact@v4
-        with:
-          failOnError: false
-          name: |
-            incomplete-mod-pk3
-            *-mod
+          zip -rvj -MM etlegacy-mod-${{needs.version.outputs.describe}}.zip legacy_*.pk3 platforms/qagame* platforms/tvgame*
 
       - uses: actions/upload-artifact@v4
         with:
@@ -391,21 +308,21 @@ jobs:
           path: etlegacy-mod-*.zip
           if-no-files-found: error
 
-  #   ______   _                   _                            _
-  #  |  ____| (_)                 | |                          | |
-  #  | |__     _   _ __     __ _  | |    _ __     __ _    ___  | | __   __ _    __ _    ___   ___
-  #  |  __|   | | | '_ \   / _` | | |   | '_ \   / _` |  / __| | |/ /  / _` |  / _` |  / _ \ / __|
-  #  | |      | | | | | | | (_| | | |   | |_) | | (_| | | (__  |   <  | (_| | | (_| | |  __/ \__ \
-  #  |_|      |_| |_| |_|  \__,_| |_|   | .__/   \__,_|  \___| |_|\_\  \__,_|  \__, |  \___| |___/
-  #                                     | |                                     __/ |
-  #                                     |_|                                    |___/
-  # Generate the final packages for Lnx, macOS, Windows and Android
+#   ______   _                   _                            _
+#  |  ____| (_)                 | |                          | |
+#  | |__     _   _ __     __ _  | |    _ __     __ _    ___  | | __   __ _    __ _    ___   ___
+#  |  __|   | | | '_ \   / _` | | |   | '_ \   / _` |  / __| | |/ /  / _` |  / _` |  / _ \ / __|
+#  | |      | | | | | | | (_| | | |   | |_) | | (_| | | (__  |   <  | (_| | | (_| | |  __/ \__ \
+#  |_|      |_| |_| |_|  \__,_| |_|   | .__/   \__,_|  \___| |_|\_\  \__,_|  \__, |  \___| |___/
+#                                     | |                                     __/ |
+#                                     |_|                                    |___/
+# Generate the final packages for Lnx, macOS, Windows
   lnx64:
-    runs-on: ubuntu-22.04
-    needs: [pre-build, mod-merger]
+    runs-on: ubuntu-20.04
+    needs: [ version, mod-merger ]
     env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+      CI_ETL_TAG: ${{needs.version.outputs.tag}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -415,7 +332,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             git config --global --add safe.directory /code
             ./easybuild.sh build -64
@@ -439,7 +356,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             cd build/
             cpack
@@ -453,8 +370,8 @@ jobs:
           if-no-files-found: error
 
   lnx32:
-    runs-on: ubuntu-22.04
-    needs: [pre-build, mod-merger]
+    runs-on: ubuntu-20.04
+    needs: [ version, mod-merger ]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -464,7 +381,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             git config --global --add safe.directory /code
             ./easybuild.sh build -32
@@ -488,7 +405,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: etlegacy/lnx-build:latest
-          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.pre-build.outputs.describe}} -e CI_ETL_TAG=${{needs.pre-build.outputs.tag}} -e CI=true
+          options: -v ${{ github.workspace }}:/code -e CI_ETL_DESCRIBE=${{needs.version.outputs.describe}} -e CI_ETL_TAG=${{needs.version.outputs.tag}} -e CI=true
           run: |
             cd build/
             cpack
@@ -503,12 +420,12 @@ jobs:
 
   lnx-aarch64:
     runs-on: ubuntu-latest
-    needs: [pre-build, mod-merger]
+    needs: [ version, mod-merger ]
     container:
       image: etlegacy/lnx-aarch64-build
     env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+      CI_ETL_TAG: ${{needs.version.outputs.tag}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -542,10 +459,10 @@ jobs:
 
   osx:
     runs-on: macos-13
-    needs: [pre-build, mod-merger]
+    needs: [ version, mod-merger ]
     env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+      CI_ETL_TAG: ${{needs.version.outputs.tag}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -586,13 +503,11 @@ jobs:
           if-no-files-found: error
 
   win:
-    runs-on: windows-2022
-    needs: [pre-build, mod-merger]
-    outputs:
-      win: ${{ steps.artifact-upload-step.outputs.artifact-id }}
+    runs-on: windows-2019
+    needs: [ version, mod-merger ]
     env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+      CI_ETL_TAG: ${{needs.version.outputs.tag}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -618,7 +533,6 @@ jobs:
         run: cpack
 
       - uses: actions/upload-artifact@v4
-        id: artifact-upload-step
         with:
           name: win-packages
           path: |
@@ -627,13 +541,11 @@ jobs:
           if-no-files-found: error
 
   win64:
-    runs-on: windows-2022
-    needs: [pre-build, mod-merger]
-    outputs:
-      win64: ${{ steps.artifact-upload-step.outputs.artifact-id }}
+    runs-on: windows-2019
+    needs: [ version, mod-merger ]
     env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
+      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
+      CI_ETL_TAG: ${{needs.version.outputs.tag}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -659,7 +571,6 @@ jobs:
         run: cpack
 
       - uses: actions/upload-artifact@v4
-        id: artifact-upload-step
         with:
           name: win64-packages
           path: |
@@ -667,330 +578,46 @@ jobs:
             build/etlegacy-*.zip
           if-no-files-found: error
 
-  android:
-    runs-on: ubuntu-22.04
-    env:
-      SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGN_APK_ALLIAS }}
-      SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGN_APK_PASS }}
-      SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGN_APK_PASS }}
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
-    needs: [pre-build, mod-merger]
-    container:
-      image: etlegacy/android-build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "17"
+#   _    _           _                       _                         _      _____   _
+#  | |  | |         | |                     | |                       | |    / ____| | |
+#  | |  | |  _ __   | |   ___     __ _    __| |     __ _   _ __     __| |   | |      | |   ___    __ _   _ __    _   _   _ __
+#  | |  | | | '_ \  | |  / _ \   / _` |  / _` |    / _` | | '_ \   / _` |   | |      | |  / _ \  / _` | | '_ \  | | | | | '_ \
+#  | |__| | | |_) | | | | (_) | | (_| | | (_| |   | (_| | | | | | | (_| |   | |____  | | |  __/ | (_| | | | | | | |_| | | |_) |
+#   \____/  | .__/  |_|  \___/   \__,_|  \__,_|    \__,_| |_| |_|  \__,_|    \_____| |_|  \___|  \__,_| |_| |_|  \__,_| | .__/
+#           | |                                                                                                         | |
+#           |_|                                                                                                         |_|
 
-      - name: Download JoyStick Dependency Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: android-joystick-packages
-          path: "/root/.m2/repository/com/etlegacy/android/joystick/"
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: All-mods
-          path: app/src/main/assets
-
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: app/src/main/assets
-
-      - name: Build Release and Generate Package
-        if: github.repository == 'etlegacy/etlegacy'
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          ./gradlew clean assembleRelease --stacktrace --info
-          ls -R
-      - name: Build Debug and Generate Package
-        if: github.repository != 'etlegacy/etlegacy'
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          ./gradlew clean assembleDebug --stacktrace --info
-          ls -R
-
-      - name: Rename APK
-        run: |
-          for FILE in ./app/build/outputs/apk/*/*; do mv "$FILE" "${FILE%-*}.apk"; done
-          ls -R app/build/outputs/apk
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-packages
-          path: app/build/outputs/apk/*/etlegacy*.apk
-          if-no-files-found: error
-
-  #    ____  _             ____       _   _
-  #   / ___|(_) __ _ _ __ |  _ \ __ _| |_| |__
-  #   \___ \| |/ _` | '_ \| |_) / _` | __| '_ \
-  #    ___) | | (_| | | | |  __/ (_| | |_| | | |
-  #   |____/|_|\__, |_| |_|_|   \__,_|\__|_| |_|
-  #            |___/
-
-  sign:
-    if: github.repository == 'etlegacy/etlegacy'
-    runs-on: ubuntu-22.04
-    needs: [pre-build, win, win64]
-    steps:
-      - name: Get version status
-        id: vars
-        run: |
-          echo "hash_exists=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.LEGACY_UPLOAD_CHECK_URL }}${{ github.sha }} 2>/dev/null)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/download-artifact@v4
-        if: ${{ steps.vars.outputs.hash_exists == '404' }}
-        with:
-          pattern: win*
-
-      - name: SignPath Win Snapshot
-        uses: signpath/github-action-submit-signing-request@v0.4
-        if: ${{ steps.vars.outputs.hash_exists == '404' && github.ref == 'refs/heads/master' }}
-        with:
-          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
-          organization-id: "${{ secrets.SIGNPATH_ORGANIZATION_ID }}"
-          project-slug: "etlegacy"
-          signing-policy-slug: "test-signing"
-          github-artifact-id: "${{needs.win.outputs.win}}"
-          wait-for-completion: true
-          output-artifact-directory: "win-packages"
-
-      - name: SignPath Win64 Snapshot
-        uses: signpath/github-action-submit-signing-request@v0.4
-        if: ${{ steps.vars.outputs.hash_exists == '404' && github.ref == 'refs/heads/master' }}
-        with:
-          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
-          organization-id: "${{ secrets.SIGNPATH_ORGANIZATION_ID }}"
-          project-slug: "etlegacy"
-          signing-policy-slug: "test-signing"
-          github-artifact-id: "${{needs.win64.outputs.win64}}"
-          wait-for-completion: true
-          output-artifact-directory: "win64-packages"
-
-      - name: SignPath Win Release
-        uses: signpath/github-action-submit-signing-request@v0.4
-        if: github.ref_type == 'tag'
-        with:
-          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
-          organization-id: "${{ secrets.SIGNPATH_ORGANIZATION_ID }}"
-          project-slug: "etlegacy"
-          signing-policy-slug: "release-signing"
-          github-artifact-id: "${{needs.win.outputs.win}}"
-          wait-for-completion: true
-          output-artifact-directory: "win-packages"
-
-      - name: SignPath Win64 Release
-        uses: signpath/github-action-submit-signing-request@v0.4
-        if: github.ref_type == 'tag'
-        with:
-          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
-          organization-id: "${{ secrets.SIGNPATH_ORGANIZATION_ID }}"
-          project-slug: "etlegacy"
-          signing-policy-slug: "release-signing"
-          github-artifact-id: "${{needs.win64.outputs.win64}}"
-          wait-for-completion: true
-          output-artifact-directory: "win64-packages"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: win-packages
-          path: |
-            win-packages/etlegacy-*-x86.exe
-            win-packages/etlegacy-*-x86.zip
-          overwrite: true
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: win64-packages
-          path: |
-            win64-packages/etlegacy-*-x64.exe
-            win64-packages/etlegacy-*-x64.zip
-          overwrite: true
-          if-no-files-found: error
-
-  #   _    _           _                       _                         _      _____   _
-  #  | |  | |         | |                     | |                       | |    / ____| | |
-  #  | |  | |  _ __   | |   ___     __ _    __| |     __ _   _ __     __| |   | |      | |   ___    __ _   _ __    _   _   _ __
-  #  | |  | | | '_ \  | |  / _ \   / _` |  / _` |    / _` | | '_ \   / _` |   | |      | |  / _ \  / _` | | '_ \  | | | | | '_ \
-  #  | |__| | | |_) | | | | (_) | | (_| | | (_| |   | (_| | | | | | | (_| |   | |____  | | |  __/ | (_| | | | | | | |_| | | |_) |
-  #   \____/  | .__/  |_|  \___/   \__,_|  \__,_|    \__,_| |_| |_|  \__,_|    \_____| |_|  \___|  \__,_| |_| |_|  \__,_| | .__/
-  #           | |                                                                                                         | |
-  #           |_|                                                                                                         |_|
-
-  upload:
-    runs-on: ubuntu-22.04
-    needs: [pre-build, sign, lnx32, lnx64, osx, lnx-aarch64, android]
+  create-release:
+    runs-on: ubuntu-20.04
+    needs: [ version, lnx32, lnx64, osx, win, win64, lnx-aarch64 ]
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
-      - uses: geekyeggo/delete-artifact@v4
-        with:
-          name: |
-            All-mods
-
-      - name: Get version status
-        id: vars
+      - name: Debug version outputs
         run: |
-          echo "hash_exists=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.LEGACY_UPLOAD_CHECK_URL }}${{ github.sha }} 2>/dev/null)" >> "$GITHUB_OUTPUT"
+          echo "Version describe: ${{ needs.version.outputs.describe }}"
+          echo "Version tag: ${{ needs.version.outputs.tag }}"
+          echo "GitHub ref: ${{ github.ref }}"
 
-      - uses: actions/download-artifact@v4
-        if: ${{ steps.vars.outputs.hash_exists == '404' }}
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: packages
 
-      - name: Upload packages
-        if: ${{ steps.vars.outputs.hash_exists == '404' }}
-        shell: bash
-        working-directory: packages
-        run: |
-          find lnx64-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=ouJ8LoD4tpFE" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find lnx32-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=3Eib0F0HiVcY" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find osx-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=zrm0gXDJ0vvQ" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find win-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=qkKkqKmiKHul" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find win64-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=1EM7l2e6pqpA" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find android-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=pqxx51ioaosg" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find lnx-aarch64-packages/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=r3tqepamenlf" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-          find mod-zip/ -name '*' -type f -exec curl --fail -H "Authorization: Bearer ${{ secrets.LEGACY_AUTH }}" -X POST -H "Content-Type: multipart/form-data" -F "data=@{}" -F "upload_id=eacan4jn14wt" -F"sha=${{ github.sha }}" ${{ secrets.LEGACY_UPLOAD_URL }} \;
-
-      - name: Discord notification
-        if: ${{ steps.vars.outputs.hash_exists == '404' && needs.pre-build.outputs.describe != needs.pre-build.outputs.tag }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.PUBLISH_DISCORD_WEBHOOK }}
-        uses: Ilshidur/action-discord@0.3.0
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          args: "<@&673533235887865879> Build from ETLegacy: ${{ needs.pre-build.outputs.describe }} (${{ github.sha }}) has been published.\nDownload at: https://www.etlegacy.com/workflow-files"
-
-  docker:
-    runs-on: ubuntu-22.04
-    needs: [pre-build, upload] # only upload to docker if the upload to the site was successfully completed
-    # only run on master
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
-    env:
-      CI_ETL_DESCRIBE: ${{needs.pre-build.outputs.describe}}
-      CI_ETL_TAG: ${{needs.pre-build.outputs.tag}}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: false
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: lnx64-packages
-          path: build/package
-
-      - name: Setup folder
-        working-directory: build/package
-        run: |
-          cp ../../misc/docker/dedicated.Dockerfile ./Dockerfile
-          cp ../../misc/docker/entrypoint.sh ./entrypoint.sh
-
-      - name: Package folder contents
-        working-directory: build/package
-        run: |
-          ls -R
-
-      - name: Login to DockerHub Registry
-        run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-
-      - name: Get the version
-        id: vars
-        run: |
-          tag_missing=$(docker manifest inspect "etlegacy/server:${CI_ETL_DESCRIBE}" > /dev/null ; echo $?)
-          echo "Current tag ${{needs.pre-build.outputs.describe}} is missing from Docker: $tag_missing"
-          echo "tag_missing=$tag_missing" >> "$GITHUB_OUTPUT"
-
-      # If we are on any build version then we create the latest-patch version
-      - name: Build the server container
-        working-directory: build/package
-        run: |
-          docker build . --file Dockerfile --tag etlegacy/server:latest-patch
-          docker push etlegacy/server:latest-patch
-
-      # Create weekly tag when scheduled and update when triggered on docker hub
-      - name: Build and push the weekly Docker image
-        if: ${{ github.event_name == 'schedule' }}
-        working-directory: build/package
-        run: |
-          docker tag etlegacy/server:latest-patch etlegacy/server:weekly
-          docker push etlegacy/server:weekly
-
-      # If we are on a release tag, then also create the 'latest' tag on docker hub
-      - name: Build and push the latest Docker image
-        if: needs.pre-build.outputs.describe == needs.pre-build.outputs.tag && steps.vars.outputs.tag_missing == '1' && github.event_name != 'schedule'
-        working-directory: build/package
-        run: |
-          docker tag etlegacy/server:latest-patch "etlegacy/server:${CI_ETL_DESCRIBE}"
-          docker tag etlegacy/server:latest-patch "etlegacy/server:latest"
-          docker push "etlegacy/server:${CI_ETL_DESCRIBE}"
-          docker push "etlegacy/server:latest"
-
-  cleanup:
-    runs-on: ubuntu-22.04
-    if: always()
-    needs: [upload, docker]
-    steps:
-      - uses: geekyeggo/delete-artifact@v4
-        with:
-          failOnError: false
-          name: |
-            All-mods
-            mod-zip
-            incomplete-mod-pk3
-            *-packages
-            *-mod
-
-  ci-discord-notify-on-failure:
-    needs:
-      - pre-build
-
-      - lnx64-mod
-      - lnx32-mod
-      - lnx-aarch64-mod
-      - osx-mod
-      - win-mod
-      - win64-mod
-      - android-mod
-
-      - mod-merger
-
-      - lnx64
-      - lnx32
-      - lnx-aarch64
-      - osx
-      - win
-      - win64
-      - android
-
-      - sign
-
-      - upload
-      - docker
-      - cleanup
-    if: |
-      github.ref == 'refs/heads/master' &&
-      failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify Discord
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.LEGACY_CI_WEBHOOK }}
-          COMMIT_SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          DEVS_ROLE_ID: "260752921698762752"
-        run: |
-          RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
-
-          MESSAGE="❌ ETLBuild **[failed on commit](<${RUN_URL}>)** \`${COMMIT_SHA}\` <@&${DEVS_ROLE_ID}>"
-
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "{\"content\": \"$MESSAGE\", \"allowed_mentions\": {\"roles\": [\"$DEVS_ROLE_ID\"]}}" \
-               "$DISCORD_WEBHOOK"
+          tag_name: ${{ needs.version.outputs.describe }}
+          name: ETLegacy ${{ needs.version.outputs.describe }}
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/master' }}
+          files: |
+            packages/lnx64-packages/*
+            packages/lnx32-packages/*
+            packages/osx-packages/*
+            packages/win-packages/*
+            packages/win64-packages/*
+            packages/lnx-aarch64-packages/*
+            packages/mod-zip/*
