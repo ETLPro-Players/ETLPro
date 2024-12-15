@@ -181,7 +181,7 @@ void R_Register(void)
 	r_extMaxAnisotropy            = ri.Cvar_Get("r_ext_max_anisotropy", "2", CVAR_ARCHIVE_ND | CVAR_LATCH);
 
 	r_picMip = ri.Cvar_Get("r_picmip", "1", CVAR_ARCHIVE | CVAR_LATCH);          // mod for DM and DK for id build.  was "1" - pushed back to 1
-	ri.Cvar_CheckRange(r_picMip, 0, 3, qtrue);
+	ri.Cvar_CheckRange(r_picMip, 0, 8, qtrue);
 	r_roundImagesDown = ri.Cvar_Get("r_roundImagesDown", "1", CVAR_ARCHIVE_ND | CVAR_LATCH);
 
 	r_colorMipLevels = ri.Cvar_Get("r_colorMipLevels", "0", CVAR_LATCH);
@@ -227,7 +227,7 @@ void R_Register(void)
 	r_railWidth         = ri.Cvar_Get("r_railWidth", "16", CVAR_ARCHIVE_ND);
 	r_railSegmentLength = ri.Cvar_Get("r_railSegmentLength", "32", CVAR_ARCHIVE_ND);
 
-	r_ambientScale  = ri.Cvar_Get("r_ambientScale", "0.5", CVAR_CHEAT);
+	r_ambientScale  = ri.Cvar_Get("r_ambientScale", "1.5", CVAR_CHEAT);
 	r_directedScale = ri.Cvar_Get("r_directedScale", "1", CVAR_CHEAT);
 
 	// temporary variables that can change at any time
