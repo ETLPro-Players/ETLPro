@@ -1,6 +1,20 @@
 ET: Legacy [![CI](https://github.com/etlegacy/etlegacy/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/etlegacy/etlegacy/actions/workflows/ci.yml?query=branch%3Amaster) [![ETLBuild](https://github.com/etlegacy/etlegacy/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/etlegacy/etlegacy/actions/workflows/build.yml) [![etlegacy](https://snapcraft.io/etlegacy/badge.svg)](https://snapcraft.io/etlegacy)  [![Analysis status](https://scan.coverity.com/projects/1160/badge.svg)](https://scan.coverity.com/projects/1160)  
 [![chat](https://img.shields.io/discord/260750790203932672.svg?logo=discord)](https://discord.gg/UBAZFys)
-==========
+# !!!ATTENTION!!!  -- THIS IS A FORK -- !!!ATTENTION!!!
+## PLEASE REVIEW OUR PROVIDED EVIDENCE THAT SHOULD LEAVE NO DOUBT AS TO THE FACT THAT THIS IS INDEED A FORK OF ANOTHER PROJECT. 
+1. IT SAYS THE WORDS "FORKED" RIGHT HERE ![image](https://github.com/user-attachments/assets/3561ea4d-4e05-42bc-b395-856e2e891587)
+2. THIS REFERS TO THE MAIN ORIGINAL BRANCH OF THE ORIGINAL REPOSITORY OF WHICH THIS IS FORKED FROM ![image](https://github.com/user-attachments/assets/d24afb4c-428b-461e-bb21-8592abf3a77d)
+3. ALL LINKS POINT TO THE ORIGINAL PROJECT OF WHICH THIS IS FORKED FROM ![image](https://github.com/user-attachments/assets/6bdae07c-c0cd-4f2d-9643-597832488e2f)
+4. ALL DISCUSSIONS AND ISSUES REFER TO THE ORIGINAL PROJECT OF WHICH THIS IS FORKED FROM ![image](https://github.com/user-attachments/assets/077fd34b-8338-495b-b781-bddcef21c128)
+
+### WE HOPE WE WERE ABLE TO CLARIFY THIS AS BEING A FORK OF THE PROJECT [etlegacy/etlegacy](https://github.com/etlegacy/etlegacy)
+### THIS FORK DOES NOT INTEND TO REPLACE OR MASQUARED OR PRETEND TO BE ANYTHING BUT A FORK. 
+### THIS FORK IS FOR PERSONAL USE AND TESTING PURPOSES ONLY.
+### THIS IS A FORK. 
+# FORK.
+
+
+ET: Legacy ![Build status](https://github.com/etlegacy/etlegacy/workflows/ETLBuild/badge.svg) [![etlegacy](https://snapcraft.io/etlegacy/badge.svg)](https://snapcraft.io/etlegacy) [![Analysis status](https://scan.coverity.com/projects/1160/badge.svg)](https://scan.coverity.com/projects/1160) ![CodeQL status](https://github.com/etlegacy/etlegacy/workflows/CodeQL/badge.svg) [![chat](https://img.shields.io/discord/260750790203932672.svg?logo=discord)](https://discord.gg/UBAZFys)
 
 *A second breath of life for Wolfenstein: Enemy Territory*
 
