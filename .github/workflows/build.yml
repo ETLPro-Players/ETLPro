@@ -204,7 +204,7 @@ jobs:
           if-no-files-found: error
 
   win-mod:
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: version
     steps:
       - uses: actions/checkout@v4
@@ -230,7 +230,7 @@ jobs:
           if-no-files-found: error
 
   win64-mod:
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: version
     steps:
       - uses: actions/checkout@v4
@@ -503,7 +503,7 @@ jobs:
           if-no-files-found: error
 
   win:
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: [ version, mod-merger ]
     env:
       CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
@@ -541,7 +541,7 @@ jobs:
           if-no-files-found: error
 
   win64:
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: [ version, mod-merger ]
     env:
       CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
