@@ -46,14 +46,14 @@ jobs:
         run: |
           # Ensure we have all tags
           git fetch --tags --force --prune
-
+          
           echo "Tags after fetch:"
           git tag -l
-
+          
           # Get version info
           git_describe=$(git describe --tags --always 2>/dev/null || echo "unknown")
           git_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
-
+          
           echo "Debug: Using describe: $git_describe"
           echo "Debug: Using tag: $git_tag"
           echo "Version info: $git_describe ?? $git_tag"
@@ -607,7 +607,7 @@ jobs:
           path: packages
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2 
         with:
           tag_name: ${{ needs.version.outputs.describe }}
           name: ETLegacy ${{ needs.version.outputs.describe }}
