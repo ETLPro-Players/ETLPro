@@ -1416,7 +1416,7 @@ void R_Register(void)
 	r_railCoreWidth     = ri.Cvar_Get("r_railCoreWidth", "16", CVAR_ARCHIVE_ND);
 	r_railSegmentLength = ri.Cvar_Get("r_railSegmentLength", "32", CVAR_ARCHIVE_ND);
 
-	r_ambientScale = ri.Cvar_Get("r_ambientScale", "0.5", CVAR_CHEAT);
+	r_ambientScale = ri.Cvar_Get("r_ambientScale", "1.5", CVAR_CHEAT);
 	r_lightScale   = ri.Cvar_Get("r_lightScale", "1", CVAR_CHEAT | CVAR_LATCH); // requires a FULL restart/bsp parse for static lights
 
 	r_vboFaces          = ri.Cvar_Get("r_vboFaces", "1", CVAR_CHEAT);
