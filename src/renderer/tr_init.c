@@ -1115,7 +1115,7 @@ void R_Register(void)
 	r_railWidth         = ri.Cvar_Get("r_railWidth", "16", CVAR_ARCHIVE_ND);
 	r_railSegmentLength = ri.Cvar_Get("r_railSegmentLength", "32", CVAR_ARCHIVE_ND);
 
-	r_ambientScale  = ri.Cvar_Get("r_ambientScale", "0.5", CVAR_CHEAT);
+	r_ambientScale  = ri.Cvar_Get("r_ambientScale", "1.5", CVAR_CHEAT);
 	r_directedScale = ri.Cvar_Get("r_directedScale", "1", CVAR_CHEAT);
 
 	// temporary variables that can change at any time
