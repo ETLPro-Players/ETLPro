@@ -46,14 +46,14 @@ jobs:
         run: |
           # Ensure we have all tags
           git fetch --tags --force --prune
-          
+
           echo "Tags after fetch:"
           git tag -l
-          
+
           # Get version info
           git_describe=$(git describe --tags --always 2>/dev/null || echo "unknown")
           git_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
-          
+
           echo "Debug: Using describe: $git_describe"
           echo "Debug: Using tag: $git_tag"
           echo "Version info: $git_describe ?? $git_tag"
@@ -164,44 +164,6 @@ jobs:
             build/legacy/tvgame*.so
           if-no-files-found: error
 
-  osx-mod:
-    runs-on: macos-13
-    needs: version
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Install dependencies
-        run: brew bundle
-
-      - name: List dev tools
-        run: |
-          # shellcheck disable=SC2010
-          ls -la /Applications/ | grep Xcode
-          ls -la /Library/Developer/CommandLineTools/SDKs/
-          xcode-select --print-path
-          xcrun -sdk macosx --show-sdk-path
-
-      - name: Build
-        env:
-          SDKROOT: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
-          DEVELOPER_DIR: /Library/Developer/CommandLineTools
-          CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
-          CI_ETL_TAG: ${{needs.version.outputs.tag}}
-        shell: bash
-        run: |
-          ./easybuild.sh build -64 -mod --osx=10.10 --osx-arc="x86_64;arm64" -j
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: osx-mod
-          path: |
-            build/legacy/cgame_mac
-            build/legacy/ui_mac
-            build/legacy/qagame_mac
-            build/legacy/tvgame_mac
-          if-no-files-found: error
 
   win-mod:
     runs-on: windows-2019
@@ -268,7 +230,7 @@ jobs:
 # This step also generates the final packages for 32 bit lnx.
   mod-merger:
     runs-on: ubuntu-20.04
-    needs: [ version, lnx64-mod, lnx32-mod, osx-mod, win-mod, win64-mod, lnx-aarch64-mod ]
+    needs: [ version, lnx64-mod, lnx32-mod, win-mod, win64-mod, lnx-aarch64-mod ]
     steps:
 
       - uses: actions/download-artifact@v4
@@ -284,7 +246,7 @@ jobs:
       - name: Create supported platform manifest
         shell: bash
         run: |
-          echo "win_x86 win_x86_64 lnx_x86 lnx_x86_64 macos_x86_64 macos_aarch64 lnx_armv8_64" > platforms.manifest
+          echo "win_x86 win_x86_64 lnx_x86 lnx_x86_64 lnx_armv8_64" > platforms.manifest
 
       - name: Merge mod files
         shell: bash
@@ -457,50 +419,6 @@ jobs:
             build/etlegacy-*.sh
           if-no-files-found: error
 
-  osx:
-    runs-on: macos-13
-    needs: [ version, mod-merger ]
-    env:
-      CI_ETL_DESCRIBE: ${{needs.version.outputs.describe}}
-      CI_ETL_TAG: ${{needs.version.outputs.tag}}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Install dependencies
-        run: |
-          brew bundle
-          brew install freetype librsvg graphicsmagick imagemagick
-
-      - name: Build
-        env:
-          SDKROOT: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
-          DEVELOPER_DIR: /Library/Developer/CommandLineTools
-        shell: bash
-        run: |
-          ./easybuild.sh build -64 --osx=10.10 --osx-arc="x86_64;arm64" -j
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: All-mods
-          path: build/legacy
-
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: build/legacy
-
-      - name: Generate packages
-        shell: bash
-        run: ./easybuild.sh package -64 --osx=10.10 --osx-arc="x86_64;arm64" -j
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: osx-packages
-          path: |
-            build/etlegacy-*.tar.gz
-            build/etlegacy-*.dmg
-          if-no-files-found: error
 
   win:
     runs-on: windows-2019
@@ -590,7 +508,7 @@ jobs:
 
   create-release:
     runs-on: ubuntu-20.04
-    needs: [ version, lnx32, lnx64, osx, win, win64, lnx-aarch64 ]
+    needs: [ version, lnx32, lnx64, win, win64, lnx-aarch64 ]
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -607,7 +525,7 @@ jobs:
           path: packages
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2 
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.describe }}
           name: ETLegacy ${{ needs.version.outputs.describe }}
@@ -616,7 +534,6 @@ jobs:
           files: |
             packages/lnx64-packages/*
             packages/lnx32-packages/*
-            packages/osx-packages/*
             packages/win-packages/*
             packages/win64-packages/*
             packages/lnx-aarch64-packages/*
